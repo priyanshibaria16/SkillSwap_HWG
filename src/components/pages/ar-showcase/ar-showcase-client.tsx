@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, type ChangeEvent } from "react";
+import { useState, type ChangeEvent, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,9 @@ export function ARShowcaseClient() {
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null); // null: initial, true: granted, false: denied
+
   const handleImageChange = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -44,6 +48,7 @@ export function ARShowcaseClient() {
       setError(null);
       setClassificationResult(null);
       setArSuggestion(null);
+      setHasCameraPermission(null); // Reset camera permission status on new image
     }
   };
 
@@ -102,6 +107,54 @@ export function ARShowcaseClient() {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    const getCameraPermission = async () => {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        console.error('getUserMedia not supported on this browser.');
+        // setError('Your browser does not support camera access, which is needed for AR.'); // This might conflict with main error state
+        setHasCameraPermission(false);
+        toast({
+          variant: 'destructive',
+          title: 'Browser Not Supported',
+          description: 'Camera access (getUserMedia) is not supported on this browser.',
+        });
+        return;
+      }
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        setHasCameraPermission(true);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+        // toast({ // This toast might be too frequent if user revisits
+        //   title: 'Camera Access Enabled',
+        //   description: 'AR preview can now use your camera.',
+        // });
+      } catch (err) {
+        console.error('Error accessing camera:', err);
+        setHasCameraPermission(false);
+        toast({
+          variant: 'destructive',
+          title: 'Camera Access Denied',
+          description: 'Please enable camera permissions in your browser settings for the AR preview.',
+        });
+      }
+    };
+
+    if (currentStep === 'done' && arSuggestion && hasCameraPermission === null) {
+      getCameraPermission();
+    }
+
+    // Cleanup function to stop the camera stream
+    return () => {
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+        videoRef.current.srcObject = null; // Clear srcObject
+      }
+    };
+  }, [currentStep, arSuggestion, toast, hasCameraPermission]); // Re-run if hasCameraPermission is reset to null
 
   const progressValue = () => {
     if (currentStep === "upload") return 25;
@@ -188,10 +241,10 @@ export function ARShowcaseClient() {
               </Alert>
             )}
 
-            {arSuggestion && (
-              <Alert variant="default" className="bg-primary/10 border-primary">
-                <CheckCircle className="h-4 w-4 text-primary" />
-                <AlertTitle className="text-primary-foreground">AR Demo Suggestion:</AlertTitle>
+            {arSuggestion && !classificationResult && ( // Should not happen if logic is correct, but as a fallback
+               <Alert variant="default" className="bg-primary/10 border-primary">
+                <Lightbulb className="h-4 w-4 text-primary" />
+                <AlertTitle className="text-primary-foreground">AR Demo Suggestion Ready</AlertTitle>
                 <AlertDescription className="text-primary-foreground/90">
                   {arSuggestion.arDemoSuggestion}
                 </AlertDescription>
@@ -199,15 +252,58 @@ export function ARShowcaseClient() {
             )}
             
             {currentStep === "done" && arSuggestion && (
-                <div className="border-2 border-dashed border-primary rounded-lg p-6 text-center bg-primary/5">
-                    <h3 className="text-lg font-semibold text-primary mb-2">AR View Placeholder</h3>
-                    <p className="text-sm text-muted-foreground">
-                        This is where the WebXR AR demonstration for "{classificationResult?.productType}" would be displayed.
-                    </p>
-                    <Button variant="outline" className="mt-4">
-                        Launch AR Demo (Not Implemented)
-                    </Button>
+              <div className="border-2 border-dashed border-primary rounded-lg p-4 md:p-6 text-center bg-primary/5 space-y-4">
+                <h3 className="text-lg font-semibold text-primary">AR Product Preview</h3>
+                 {arSuggestion.arDemoSuggestion && classificationResult && (
+                    <Alert variant="default" className="bg-primary/10 border-primary text-left mb-2">
+                        <Lightbulb className="h-4 w-4 text-primary" />
+                        <AlertTitle className="text-primary">Suggested AR Demo:</AlertTitle>
+                        <AlertDescription className="text-primary/90">
+                        {arSuggestion.arDemoSuggestion} for a "{classificationResult.productType}".
+                        </AlertDescription>
+                    </Alert>
+                 )}
+                <p className="text-sm text-muted-foreground">
+                  Attempting to access your camera for a basic preview.
+                </p>
+                
+                <div className="w-full max-w-md mx-auto bg-black rounded-md overflow-hidden shadow-inner aspect-video flex items-center justify-center">
+                  <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
                 </div>
+            
+                {hasCameraPermission === null && !error && !(isLoading && currentStep === 'suggest') && (
+                  <Alert>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <AlertTitle>Accessing Camera...</AlertTitle>
+                    <AlertDescription>
+                      Please grant permission when prompted by your browser.
+                    </AlertDescription>
+                  </Alert>
+                )}
+            
+                {hasCameraPermission === false && (
+                  <Alert variant="destructive" className="text-left">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Camera Access Denied or Unavailable</AlertTitle>
+                    <AlertDescription>
+                      Please ensure camera permissions are enabled in your browser settings and that your browser supports camera access. The AR preview cannot function without it.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                 {hasCameraPermission === true && (
+                    <Alert variant="default" className="bg-green-100 dark:bg-green-900/30 border-green-500 dark:border-green-700 text-left text-green-700 dark:text-green-300">
+                        <CheckCircle className="h-4 w-4 text-green-600 dark:text-green-400" />
+                        <AlertTitle>Camera Access Active!</AlertTitle>
+                        <AlertDescription>
+                            Your camera feed is live. The next step for a full AR experience would be to overlay the 3D model of the product.
+                        </AlertDescription>
+                    </Alert>
+                )}
+                
+                <Button variant="outline" className="mt-4" disabled>
+                  Launch Full AR Demo (Not Implemented)
+                </Button>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -215,3 +311,4 @@ export function ARShowcaseClient() {
     </div>
   );
 }
+

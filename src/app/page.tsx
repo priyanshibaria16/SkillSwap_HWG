@@ -11,7 +11,7 @@ export default function LandingPage() {
         <div className="container flex h-16 max-w-screen-2xl items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
             <Gift className="h-6 w-6 text-primary" />
-            <span className="font-bold text-lg">SkillSwap ARena</span>
+            <span className="font-bold text-lg">SkillSwap</span>
           </Link>
           <nav className="flex items-center gap-4">
             <Button variant="ghost" asChild>
@@ -33,7 +33,7 @@ export default function LandingPage() {
             Share Skills, Unlock Potential
           </h1>
           <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
-            SkillSwap ARena is a vibrant community platform where you can learn new skills, teach what you love, and explore products in augmented reality.
+            SkillSwap is a vibrant community platform where you can learn new skills, teach what you love, and explore products in augmented reality.
           </p>
           <div className="mt-10">
             <Button size="lg" asChild>
@@ -90,7 +90,7 @@ export default function LandingPage() {
             </div>
             <div className="md:w-1/2">
               <Image
-                src="https://placehold.co/600x400.png"
+                src="https://exchange4media.gumlet.io/news-photo/120475-big69.jpg"
                 alt="AR Showcase Example"
                 width={600}
                 height={400}
@@ -104,7 +104,7 @@ export default function LandingPage() {
 
       <footer className="border-t">
         <div className="container py-8 text-center text-muted-foreground">
-          <p>&copy; {new Date().getFullYear()} SkillSwap ARena. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} SkillSwap. All rights reserved.</p>
         </div>
       </footer>
     </div>

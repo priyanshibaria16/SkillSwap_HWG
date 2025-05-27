@@ -1,4 +1,4 @@
-# **App Name**: SkillSwap ARena
+# **App Name**: SkillSwap 
 
 ## Core Features:
 
