@@ -23,7 +23,7 @@ export function AppHeader() {
           <SidebarTrigger className="lg:hidden" />
           <Link href="/dashboard" className="hidden items-center gap-2 lg:flex">
             <Gift className="h-6 w-6 text-primary" />
-            <span className="font-bold text-lg">SkillSwap ARena</span>
+            <span className="font-bold text-lg">SkillSwap</span>
           </Link>
         </div>
 

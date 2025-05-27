@@ -12,7 +12,7 @@ export default function SettingsPage() {
     <div>
       <PageHeader
         title="Settings"
-        description="Customize your SkillSwap ARena experience."
+        description="Customize your SkillSwap experience."
       />
       <div className="grid gap-6 md:grid-cols-1 lg:grid-cols-2 max-w-4xl mx-auto">
         <Card className="shadow-md">

@@ -8,7 +8,7 @@ const geistSans = GeistSans;
 const geistMono = GeistMono;
 
 export const metadata: Metadata = {
-  title: 'SkillSwap ARena',
+  title: 'SkillSwap',
   description: 'A Skill-Sharing Platform with AR + AI + Gamification',
 };
 
