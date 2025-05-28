@@ -56,8 +56,8 @@ export function SigninForm() {
       if (error.code) {
         switch (error.code) {
           case "auth/user-not-found":
-          case "auth/invalid-credential": // Catches wrong password and user not found in newer SDK versions
-          case "auth/wrong-password": // For older SDK compatibility
+          case "auth/invalid-credential": 
+          case "auth/wrong-password": 
             errorMessage = "Invalid email or password.";
             break;
           case "auth/invalid-email":
@@ -67,7 +67,7 @@ export function SigninForm() {
             errorMessage = "Too many attempts. Please try again later.";
             break;
           default:
-            errorMessage = error.message;
+            errorMessage = error.message || "An unknown sign-in error occurred.";
         }
       }
       toast({
@@ -93,10 +93,23 @@ export function SigninForm() {
     } catch (error: any) {
       console.error("Google sign-in error:", error);
       let errorMessage = "Could not sign in with Google. Please try again.";
-      if (error.code === "auth/popup-closed-by-user") {
-        errorMessage = "Sign-in popup closed. Please try again.";
-      } else if (error.code === "auth/account-exists-with-different-credential") {
-        errorMessage = "An account already exists with this email using a different sign-in method.";
+      if (error.code) {
+        switch (error.code) {
+          case "auth/popup-closed-by-user":
+            errorMessage = "Sign-in popup closed. Please try again.";
+            break;
+          case "auth/account-exists-with-different-credential":
+            errorMessage = "An account already exists with this email using a different sign-in method.";
+            break;
+          case "auth/operation-not-allowed":
+            errorMessage = "Google Sign-In is not enabled for this app. Please contact support or check Firebase configuration.";
+            break;
+          case "auth/unauthorized-domain":
+            errorMessage = "This domain is not authorized for Google Sign-In. Please check Firebase configuration.";
+            break;
+          default:
+            errorMessage = error.message || "An unknown Google sign-in error occurred.";
+        }
       }
       toast({
         variant: "destructive",

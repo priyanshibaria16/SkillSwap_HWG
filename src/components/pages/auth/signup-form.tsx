@@ -77,7 +77,7 @@ export function SignupForm() {
             errorMessage = "Password is too weak. Please choose a stronger password.";
             break;
           default:
-            errorMessage = error.message;
+            errorMessage = error.message || "An unknown sign-up error occurred.";
         }
       }
       toast({
@@ -103,10 +103,23 @@ export function SignupForm() {
     } catch (error: any) {
       console.error("Google sign-up error:", error);
       let errorMessage = "Could not sign up with Google. Please try again.";
-      if (error.code === "auth/popup-closed-by-user") {
-        errorMessage = "Sign-up popup closed. Please try again.";
-      } else if (error.code === "auth/account-exists-with-different-credential") {
-         errorMessage = "An account already exists with this email. Try signing in with the original method or Google.";
+       if (error.code) {
+        switch (error.code) {
+          case "auth/popup-closed-by-user":
+            errorMessage = "Sign-up popup closed. Please try again.";
+            break;
+          case "auth/account-exists-with-different-credential":
+            errorMessage = "An account already exists with this email using a different sign-in method. Try signing in with that method.";
+            break;
+          case "auth/operation-not-allowed":
+            errorMessage = "Google Sign-Up is not enabled for this app. Please contact support or check Firebase configuration.";
+            break;
+          case "auth/unauthorized-domain":
+            errorMessage = "This domain is not authorized for Google Sign-Up. Please check Firebase configuration.";
+            break;
+          default:
+            errorMessage = error.message || "An unknown Google sign-up error occurred.";
+        }
       }
       toast({
         variant: "destructive",
