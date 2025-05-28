@@ -21,8 +21,8 @@ export function ProfileClient() {
   // Placeholder data
   const userProfile = {
     name: "Jane Doe",
-    email: "jane.doe@example.com",
-    avatarUrl: "https://placehold.co/128x128.png",
+    email: "jane.doe@gmail.com",
+    avatarUrl: "https://img.freepik.com/free-vector/young-man-black-shirt_1308-173618.jpg?uid=R140942659&ga=GA1.1.585428745.1748396871&semt=ais_hybrid&w=740",
     bio: "Passionate lifelong learner and experienced pottery tutor. Excited to share skills and learn from others!",
     skills: ["Pottery", "Graphic Design", "Yoga", "Spanish"],
     experience: "5 years teaching Pottery, 3 years as a freelance Graphic Designer.",
