@@ -11,7 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Star, Edit3, Coins, ShieldCheck, BookUser, Briefcase, Loader2, Camera } from "lucide-react";
+import { Star, Edit3, Coins, ShieldCheck, BookUser, Briefcase, Loader2, Camera, PlusCircle, ListChecks } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { auth } from "@/lib/firebase";
 import type { User } from "firebase/auth";
@@ -41,7 +41,7 @@ export function ProfileClient() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // User-specific data states (replacing staticProfileData)
-  const [coins, setCoins] = useState(0);
+  const [coins, setCoins] = useState(0); // Will initialize to 0, or fetched data later
   const [learnerRating, setLearnerRating] = useState(0.0);
   const [tutorRating, setTutorRating] = useState(0.0);
   const [sessionsCompleted, setSessionsCompleted] = useState(0);
@@ -53,10 +53,15 @@ export function ProfileClient() {
       if (user) {
         setCurrentUser(user);
         setDisplayName(user.displayName || "");
+        setImagePreview(user.photoURL); // Set image preview from Firebase Auth
         // TODO: Fetch coins, ratings, sessions, badges, bio, skills, experience from Firestore
         // For now, using defaults or previously set state for bio, skills, experience
         // and default initial values for new gamification/rating states.
-        // Example: setCoins(fetchedUserData.coins || 0);
+        // Example:
+        // setCoins(fetchedUserData.coins || 0);
+        // setBio(fetchedUserData.bio || "Default bio if not set");
+        // setSkills(fetchedUserData.skills || "Default skills if not set");
+        // etc.
       } else {
         setCurrentUser(null);
       }
@@ -92,8 +97,8 @@ export function ProfileClient() {
     } else { 
       if (currentUser) {
         setDisplayName(currentUser.displayName || "");
-        // Reset image preview if not saved from previous edit session
-        setImagePreview(null);
+        // Reset image preview to current auth URL if not saved from previous edit session
+        setImagePreview(currentUser.photoURL || null);
         setSelectedFile(null);
         // TODO: Re-fetch other editable fields (bio, skills, experience) from their source (e.g. Firestore)
         // to ensure user edits on fresh data if they cancel and re-edit.
@@ -110,7 +115,7 @@ export function ProfileClient() {
     }
     setIsSaving(true);
 
-    let profileUpdates: { displayName?: string; photoURL?: string } = {};
+    let profileUpdates: { displayName?: string; photoURL?: string | null } = {};
     let messages: string[] = [];
 
     if (displayName !== (currentUser.displayName || "")) {
@@ -118,19 +123,29 @@ export function ProfileClient() {
     }
 
     // TODO: Implement actual photo upload to Firebase Storage
-    // if (selectedFile) {
-    //   const newPhotoURL = await uploadProfilePicture(selectedFile, currentUser.uid); // Placeholder function
-    //   if (newPhotoURL) profileUpdates.photoURL = newPhotoURL;
-    // }
+    // For now, this part is conceptual. Actual upload needs Firebase Storage integration.
+    if (selectedFile) {
+      messages.push("Profile picture selected (upload not implemented yet).");
+      // In a real scenario:
+      // const newPhotoURL = await uploadProfilePicture(selectedFile, currentUser.uid); // This function would upload to Firebase Storage
+      // if (newPhotoURL) {
+      //   profileUpdates.photoURL = newPhotoURL;
+      //   setImagePreview(newPhotoURL); // Update preview with the new URL from storage
+      // }
+    } else if (imagePreview === null && currentUser.photoURL !== null) {
+      // If user cleared the image preview and there was a photoURL, this implies removal
+      // profileUpdates.photoURL = null; // Set to null to remove photo in Firebase Auth (if desired)
+      messages.push("Profile picture cleared locally (update in Firebase Auth not fully implemented for removal).");
+    }
 
-    if (profileUpdates.displayName || profileUpdates.photoURL) {
+
+    if (profileUpdates.displayName || profileUpdates.photoURL !== undefined) {
       try {
         await updateProfile(currentUser, profileUpdates);
         if(profileUpdates.displayName) messages.push("Display name updated.");
-        if(profileUpdates.photoURL) messages.push("Profile picture updated.");
+        if(profileUpdates.photoURL) messages.push("Profile picture updated in Firebase Auth.");
         // If photo upload were implemented and successful:
         // setSelectedFile(null); 
-        // setImagePreview(currentUser.photoURL); // Or newPhotoURL if directly returned
       } catch (error) {
         console.error("Error updating profile:", error);
         toast({ variant: "destructive", title: "Update Failed", description: "Could not save your Firebase Auth profile." });
@@ -142,7 +157,15 @@ export function ProfileClient() {
     // TODO: Save other fields (bio, skills, experience, coins, etc.) to Firestore
     // For example: await updateFirestoreProfile(currentUser.uid, { bio, skills, experience });
     // This would typically happen here. For now, we'll just acknowledge potential changes.
-    messages.push("Other profile details (bio, skills, experience) updated locally.");
+    if (bio !== "Passionate lifelong learner and experienced tutor. Excited to share skills and learn from others!" /* check against initial/fetched bio */) {
+        messages.push("Bio updated locally.");
+    }
+    if (skills !== "Pottery, Graphic Design, Yoga, Spanish" /* check against initial/fetched skills */) {
+        messages.push("Skills updated locally.");
+    }
+    if (experience !== "5 years teaching Pottery, 3 years as a freelance Graphic Designer." /* check against initial/fetched experience */) {
+        messages.push("Experience updated locally.");
+    }
 
 
     if (messages.length > 0) {
@@ -157,6 +180,13 @@ export function ProfileClient() {
 
   const toggleRole = () => {
     setActiveRole(prevRole => (prevRole === "learner" ? "tutor" : "learner"));
+  };
+
+  const handleAddCoins = () => {
+    toast({
+      title: "Feature Coming Soon!",
+      description: "Payment gateway integration for adding coins is not yet implemented.",
+    });
   };
 
   if (isLoading) {
@@ -183,7 +213,7 @@ export function ProfileClient() {
           <CardHeader className="items-center text-center">
             <div className="relative">
               <Avatar className="w-24 h-24 mb-4 border-4 border-primary shadow-md">
-                <AvatarImage src={imagePreview || currentUser?.photoURL || "https://placehold.co/128x128.png"} alt={displayName || "User"} data-ai-hint="person avatar" />
+                <AvatarImage src={imagePreview || "https://placehold.co/128x128.png"} alt={displayName || "User"} data-ai-hint="person avatar" />
                 <AvatarFallback>{avatarFallback}</AvatarFallback>
               </Avatar>
               {isEditing && (
@@ -212,11 +242,12 @@ export function ProfileClient() {
                 onChange={(e) => setDisplayName(e.target.value)}
                 placeholder="Your Name"
                 className="text-2xl font-semibold text-center h-auto p-1 border-0 border-b-2 border-transparent focus-visible:ring-0 focus-visible:border-primary transition-colors"
+                disabled={isSaving}
               />
             ) : (
               <CardTitle className="text-2xl">{displayName || currentUser?.displayName || "User Name"}</CardTitle>
             )}
-            <CardDescription>{currentUser?.email}</CardDescription>
+            <CardDescription className="truncate max-w-xs">{currentUser?.email}</CardDescription>
             <Button variant="outline" size="sm" className="mt-2" onClick={handleEditToggle} disabled={isSaving}>
               {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin"/> : <Edit3 className="mr-2 h-4 w-4" />}
               {isEditing ? "Save Profile" : "Edit Profile"}
@@ -246,13 +277,19 @@ export function ProfileClient() {
 
         <Card className="shadow-lg">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Coins className="text-yellow-500" /> Gamification</CardTitle>
+            <CardTitle className="flex items-center justify-between">
+                <span className="flex items-center gap-2"><Coins className="text-yellow-500" /> Coins & Gamification</span>
+            </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             <div className="flex justify-between items-center">
               <span className="font-medium">Coin Balance:</span>
               <span className="font-bold text-lg text-primary">{coins}</span>
             </div>
+             <Button variant="outline" size="sm" className="w-full" onClick={handleAddCoins}>
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Coins
+            </Button>
+            <Separator />
             <div>
               <Label className="text-sm">Level Progress (Next Badge):</Label>
               <Progress value={(sessionsCompleted % 10) * 10} className="h-2 mt-1" />
@@ -267,6 +304,11 @@ export function ProfileClient() {
               ) : (
                 <p className="text-xs text-muted-foreground">No badges earned yet.</p>
               )}
+            </div>
+            <Separator />
+             <div>
+                <h4 className="text-sm font-medium mb-2 flex items-center gap-2"><ListChecks className="h-4 w-4 text-muted-foreground"/>Transaction History</h4>
+                <p className="text-xs text-muted-foreground text-center py-2">Transaction history coming soon.</p>
             </div>
           </CardContent>
         </Card>
@@ -289,7 +331,7 @@ export function ProfileClient() {
                 disabled={isSaving}
               />
             ) : (
-              <p className="text-muted-foreground">{bio || "No bio provided."}</p>
+              <p className="text-muted-foreground whitespace-pre-wrap">{bio || "No bio provided."}</p>
             )}
           </CardContent>
         </Card>
@@ -332,7 +374,7 @@ export function ProfileClient() {
                 disabled={isSaving}
               />
             ) : (
-             <p className="text-sm text-muted-foreground">{experience || "No experience described."}</p>
+             <p className="text-sm text-muted-foreground whitespace-pre-wrap">{experience || "No experience described."}</p>
             )}
           </CardContent>
         </Card>
