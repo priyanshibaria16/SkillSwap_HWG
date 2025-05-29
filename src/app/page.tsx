@@ -124,7 +124,7 @@ export default function LandingPage() {
             </div>
             <div className="md:w-1/2 opacity-0 animate-fade-in-right">
               <Image
-                src="https://placehold.co/600x400.png"
+                src="https://img.freepik.com/free-vector/augmented-reality-background-flat-style_23-2147806238.jpg?uid=R140942659&ga=GA1.1.585428745.1748396871&semt=ais_hybrid&w=740"
                 alt="AR Showcase Example"
                 width={600}
                 height={400}

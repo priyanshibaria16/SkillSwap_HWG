@@ -6,7 +6,8 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { PageHeader } from "@/components/shared/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Info, Video, ListVideo, FileText } from "lucide-react";
+import { ArrowLeft, Info, Video, ListVideo, FileText, CheckSquare } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 // Mock session data - in a real app, this would be fetched based on sessionId
 const mockSessionDetails = {
@@ -46,6 +47,7 @@ type SessionDetailsData = {
 export function SessionClient({ sessionId }: { sessionId: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { toast } = useToast();
   
   const [skillName, setSkillName] = useState("Session");
   const [participantName, setParticipantName] = useState("Participant");
@@ -74,6 +76,15 @@ export function SessionClient({ sessionId }: { sessionId: string }) {
     }
   }, [searchParams, sessionId]);
 
+  const handleMarkSessionComplete = () => {
+    localStorage.setItem('skillswap_session_just_completed', 'true');
+    toast({
+      title: "Session Complete!",
+      description: "Redirecting to your profile to claim rewards.",
+    });
+    router.push('/profile');
+  };
+
   return (
     <div className="max-w-4xl mx-auto">
       <PageHeader
@@ -95,7 +106,7 @@ export function SessionClient({ sessionId }: { sessionId: string }) {
         </CardContent>
       </Card>
 
-      <Card className="shadow-lg">
+      <Card className="shadow-lg mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><ListVideo className="text-primary h-6 w-6" />Session Video Queue</CardTitle>
           <CardDescription>
@@ -126,16 +137,22 @@ export function SessionClient({ sessionId }: { sessionId: string }) {
                 </div>
               </div>
             ))
-          ) : sessionData ? ( // Only show "no tutorials" if sessionData is loaded but empty
+          ) : sessionData ? ( 
              <div className="text-center py-8 text-muted-foreground">
                 <Video className="mx-auto h-12 w-12 mb-2" />
                 <p>No video tutorials available for this session yet.</p>
              </div>
-           ) : ( // sessionData is null, meaning it's still in the initial loading state
+           ) : ( 
             <p className="text-muted-foreground">Loading video tutorials...</p>
           )}
         </CardContent>
       </Card>
+
+      <div className="flex justify-end mb-6">
+        <Button onClick={handleMarkSessionComplete} size="lg">
+          <CheckSquare className="mr-2 h-5 w-5" /> Mark Session as Complete & Claim Reward
+        </Button>
+      </div>
     </div>
   );
 }

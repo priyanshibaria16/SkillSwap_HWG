@@ -11,14 +11,42 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Star, Edit3, Coins, ShieldCheck, BookUser, Briefcase, Loader2, Camera, PlusCircle, ListChecks } from "lucide-react";
+import { Star, Edit3, Coins, ShieldCheck, BookUser, Briefcase, Loader2, Camera, PlusCircle, ListChecks, TrendingUp, TrendingDown, Award, CheckBadge } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { auth } from "@/lib/firebase";
 import type { User } from "firebase/auth";
 import { onAuthStateChanged, updateProfile } from "firebase/auth";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { format } from "date-fns";
 
 type UserRole = "learner" | "tutor";
+
+interface Transaction {
+  id: string;
+  description: string;
+  amount: number;
+  date: Date;
+  type: 'credit' | 'debit';
+}
+
+interface AssessedSkill {
+  id: string;
+  skillName: string;
+  level: "Beginner" | "Intermediate" | "Advanced";
+  date: Date;
+}
+
 
 export function ProfileClient() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -30,22 +58,33 @@ export function ProfileClient() {
 
   // Form data states
   const [displayName, setDisplayName] = useState("");
-  const [bio, setBio] = useState("Passionate lifelong learner and experienced tutor. Excited to share skills and learn from others!");
-  const [skills, setSkills] = useState("Pottery, Graphic Design, Yoga, Spanish");
-  const [experience, setExperience] = useState("5 years teaching Pottery, 3 years as a freelance Graphic Designer.");
+  const [bio, setBio] = useState("");
+  const [skills, setSkills] = useState(""); // Comma-separated
+  const [experience, setExperience] = useState("");
   const [avatarFallback, setAvatarFallback] = useState("P");
 
-  // State for image preview
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // User-specific data states (replacing staticProfileData)
-  const [coins, setCoins] = useState(0); // Will initialize to 0, or fetched data later
+  // Gamification states
+  const [coins, setCoins] = useState(0);
   const [learnerRating, setLearnerRating] = useState(0.0);
   const [tutorRating, setTutorRating] = useState(0.0);
   const [sessionsCompleted, setSessionsCompleted] = useState(0);
   const [badges, setBadges] = useState<string[]>([]);
+  const [transactionHistory, setTransactionHistory] = useState<Transaction[]>([]);
+
+  // Assessed Skills (Placeholder for now)
+  const [assessedSkills, setAssessedSkills] = useState<AssessedSkill[]>([
+    { id: 'assess1', skillName: 'Advanced Pottery', level: 'Intermediate', date: new Date(Date.now() - 86400000 * 2) }, // 2 days ago
+    { id: 'assess2', skillName: 'Conversational Spanish', level: 'Beginner', date: new Date(Date.now() - 86400000 * 5) }, // 5 days ago
+  ]);
+
+
+  const defaultBio = "Passionate lifelong learner and experienced tutor. Excited to share skills and learn from others!";
+  const defaultSkills = "Pottery, Graphic Design, Yoga, Spanish";
+  const defaultExperience = "5 years teaching Pottery, 3 years as a freelance Graphic Designer.";
 
   useEffect(() => {
     setIsLoading(true);
@@ -53,29 +92,71 @@ export function ProfileClient() {
       if (user) {
         setCurrentUser(user);
         setDisplayName(user.displayName || "");
-        setImagePreview(user.photoURL); // Set image preview from Firebase Auth
-        // TODO: Fetch coins, ratings, sessions, badges, bio, skills, experience from Firestore
-        // For now, using defaults or previously set state for bio, skills, experience
-        // and default initial values for new gamification/rating states.
-        // Example:
-        // setCoins(fetchedUserData.coins || 0);
-        // setBio(fetchedUserData.bio || "Default bio if not set");
-        // setSkills(fetchedUserData.skills || "Default skills if not set");
-        // etc.
+        setImagePreview(user.photoURL);
+        
+        // Initialize profile data - in a real app, fetch this from Firestore
+        // For now, using defaults if not already set by some other means (e.g. local state persistence if added)
+        setBio(prev => prev || defaultBio);
+        setSkills(prev => prev || defaultSkills);
+        setExperience(prev => prev || defaultExperience);
+        
+        setCoins(0); 
+        setSessionsCompleted(0); 
+        setLearnerRating(0.0);
+        setTutorRating(0.0);
+        setBadges([]); 
+        setTransactionHistory([
+          {
+            id: new Date().toISOString() + Math.random().toString(36).substring(2, 7) + 'start', // unique id
+            description: "Starting Balance",
+            amount: 0, 
+            date: new Date(),
+            type: 'credit' as 'credit',
+          }
+        ]);
+
+        if (localStorage.getItem('skillswap_session_just_completed') === 'true') {
+          handleSimulateSessionCompletion(); 
+          localStorage.removeItem('skillswap_session_just_completed');
+        }
+
       } else {
         setCurrentUser(null);
+        // Reset all states if user logs out
+        setDisplayName("");
+        setBio(defaultBio);
+        setSkills(defaultSkills);
+        setExperience(defaultExperience);
+        setImagePreview(null);
+        setCoins(0);
+        setSessionsCompleted(0);
+        setLearnerRating(0.0);
+        setTutorRating(0.0);
+        setBadges([]);
+        setTransactionHistory([]);
+        setAssessedSkills([ // Reset placeholder assessed skills too
+            { id: 'assess1', skillName: 'Advanced Pottery', level: 'Intermediate', date: new Date(Date.now() - 86400000 * 2) },
+            { id: 'assess2', skillName: 'Conversational Spanish', level: 'Beginner', date: new Date(Date.now() - 86400000 * 5) },
+        ]);
       }
       setIsLoading(false);
     });
     return () => unsubscribe();
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); 
 
   useEffect(() => {
     const nameForFallback = displayName || (currentUser?.displayName) || "User";
-    setAvatarFallback(
-      (nameForFallback.charAt(0) || "S") +
-      (nameForFallback.split(' ')[1]?.charAt(0) || (nameForFallback.charAt(1) || "K")).toUpperCase()
-    );
+    const nameParts = nameForFallback.split(' ');
+    let fallback = (nameParts[0]?.charAt(0) || "S").toUpperCase();
+    if (nameParts.length > 1) {
+      fallback += (nameParts[nameParts.length - 1]?.charAt(0) || "").toUpperCase();
+    } else if (nameForFallback.length > 1) {
+      fallback += (nameForFallback.charAt(1) || "").toUpperCase();
+    } else {
+      fallback += (nameForFallback.charAt(0) || "K").toUpperCase(); // Ensure two chars if possible
+    }
+    setAvatarFallback(fallback);
   }, [currentUser, displayName]);
 
 
@@ -97,12 +178,13 @@ export function ProfileClient() {
     } else { 
       if (currentUser) {
         setDisplayName(currentUser.displayName || "");
-        // Reset image preview to current auth URL if not saved from previous edit session
-        setImagePreview(currentUser.photoURL || null);
-        setSelectedFile(null);
-        // TODO: Re-fetch other editable fields (bio, skills, experience) from their source (e.g. Firestore)
-        // to ensure user edits on fresh data if they cancel and re-edit.
-        // For now, they edit the current local state.
+        // Fetch current bio, skills, exp from state if they were potentially edited before but not saved
+        // For now, we just set them from defaults or existing state if they were already there.
+        setBio(prev => prev || defaultBio);
+        setSkills(prev => prev || defaultSkills);
+        setExperience(prev => prev || defaultExperience);
+        setImagePreview(currentUser.photoURL || null); 
+        setSelectedFile(null); 
       }
       setIsEditing(true);
     }
@@ -121,52 +203,36 @@ export function ProfileClient() {
     if (displayName !== (currentUser.displayName || "")) {
       profileUpdates.displayName = displayName;
     }
-
-    // TODO: Implement actual photo upload to Firebase Storage
-    // For now, this part is conceptual. Actual upload needs Firebase Storage integration.
-    if (selectedFile) {
-      messages.push("Profile picture selected (upload not implemented yet).");
-      // In a real scenario:
-      // const newPhotoURL = await uploadProfilePicture(selectedFile, currentUser.uid); // This function would upload to Firebase Storage
-      // if (newPhotoURL) {
-      //   profileUpdates.photoURL = newPhotoURL;
-      //   setImagePreview(newPhotoURL); // Update preview with the new URL from storage
-      // }
-    } else if (imagePreview === null && currentUser.photoURL !== null) {
-      // If user cleared the image preview and there was a photoURL, this implies removal
-      // profileUpdates.photoURL = null; // Set to null to remove photo in Firebase Auth (if desired)
-      messages.push("Profile picture cleared locally (update in Firebase Auth not fully implemented for removal).");
-    }
-
-
-    if (profileUpdates.displayName || profileUpdates.photoURL !== undefined) {
+    
+    if (profileUpdates.displayName) {
       try {
-        await updateProfile(currentUser, profileUpdates);
-        if(profileUpdates.displayName) messages.push("Display name updated.");
-        if(profileUpdates.photoURL) messages.push("Profile picture updated in Firebase Auth.");
-        // If photo upload were implemented and successful:
-        // setSelectedFile(null); 
+        await updateProfile(currentUser, { displayName: profileUpdates.displayName });
+        messages.push("Display name updated.");
       } catch (error) {
-        console.error("Error updating profile:", error);
-        toast({ variant: "destructive", title: "Update Failed", description: "Could not save your Firebase Auth profile." });
+        console.error("Error updating display name:", error);
+        toast({ variant: "destructive", title: "Update Failed", description: "Could not save your display name." });
         setIsSaving(false);
         return;
       }
     }
     
-    // TODO: Save other fields (bio, skills, experience, coins, etc.) to Firestore
-    // For example: await updateFirestoreProfile(currentUser.uid, { bio, skills, experience });
-    // This would typically happen here. For now, we'll just acknowledge potential changes.
-    if (bio !== "Passionate lifelong learner and experienced tutor. Excited to share skills and learn from others!" /* check against initial/fetched bio */) {
-        messages.push("Bio updated locally.");
+    // In a real app, you'd upload selectedFile to Firebase Storage here
+    // and then update currentUser.photoURL with the new image URL.
+    if (selectedFile) {
+        messages.push("Profile picture selected (actual upload not implemented in this step).");
     }
-    if (skills !== "Pottery, Graphic Design, Yoga, Spanish" /* check against initial/fetched skills */) {
-        messages.push("Skills updated locally.");
+    
+    // Simulate saving other fields (bio, skills, experience) locally for now
+    // In a real app, you'd save these to Firestore.
+    if (bio !== (currentUser.providerData[0]?.email || defaultBio)) { // A bit of a stand-in comparison
+        messages.push("Bio updated (locally).");
     }
-    if (experience !== "5 years teaching Pottery, 3 years as a freelance Graphic Designer." /* check against initial/fetched experience */) {
-        messages.push("Experience updated locally.");
+    if (skills !== defaultSkills) { 
+        messages.push("Skills updated (locally).");
     }
-
+    if (experience !== defaultExperience) { 
+        messages.push("Experience updated (locally).");
+    }
 
     if (messages.length > 0) {
       toast({ title: "Profile Updated", description: messages.join(" ") });
@@ -182,11 +248,35 @@ export function ProfileClient() {
     setActiveRole(prevRole => (prevRole === "learner" ? "tutor" : "learner"));
   };
 
-  const handleAddCoins = () => {
+  const handleSimulateSessionCompletion = () => {
+    const rewardAmount = 20;
+    setSessionsCompleted(prev => prev + 1);
+    setCoins(prevCoins => prevCoins + rewardAmount);
+    setTransactionHistory(prevHistory => [
+      {
+        id: new Date().toISOString() + Math.random().toString(36).substring(2, 15),
+        description: "Session Completion Reward",
+        amount: rewardAmount,
+        date: new Date(),
+        type: 'credit' as 'credit',
+      },
+      ...prevHistory,
+    ].sort((a,b) => b.date.getTime() - a.date.getTime()));
     toast({
-      title: "Feature Coming Soon!",
-      description: "Payment gateway integration for adding coins is not yet implemented.",
+      title: "Session Completed!",
+      description: `You earned ${rewardAmount} coins.`,
     });
+
+    if ((sessionsCompleted + 1) % 10 === 0 && (sessionsCompleted + 1) > 0) {
+      const newBadge = `Badge Tier ${(sessionsCompleted + 1) / 10}`;
+      if (!badges.includes(newBadge)) {
+        setBadges(prevBadges => [...prevBadges, newBadge]);
+         toast({
+            title: "New Badge Unlocked!",
+            description: `Congratulations, you earned: ${newBadge}`,
+        });
+      }
+    }
   };
 
   if (isLoading) {
@@ -223,6 +313,7 @@ export function ProfileClient() {
                   className="absolute bottom-3 right-[-5px] rounded-full h-9 w-9 bg-background hover:bg-muted border-2 border-primary shadow-md"
                   onClick={() => fileInputRef.current?.click()}
                   title="Change profile picture"
+                  disabled={isSaving}
                 >
                   <Camera className="h-5 w-5 text-primary" />
                   <span className="sr-only">Change profile picture</span>
@@ -235,6 +326,7 @@ export function ProfileClient() {
               onChange={handleImageChange}
               accept="image/*"
               className="hidden"
+              disabled={isSaving}
             />
             {isEditing ? (
               <Input
@@ -286,14 +378,12 @@ export function ProfileClient() {
               <span className="font-medium">Coin Balance:</span>
               <span className="font-bold text-lg text-primary">{coins}</span>
             </div>
-             <Button variant="outline" size="sm" className="w-full" onClick={handleAddCoins}>
-                <PlusCircle className="mr-2 h-4 w-4" /> Add Coins
-            </Button>
+            
             <Separator />
             <div>
-              <Label className="text-sm">Level Progress (Next Badge):</Label>
-              <Progress value={(sessionsCompleted % 10) * 10} className="h-2 mt-1" />
-              <p className="text-xs text-muted-foreground mt-1">{sessionsCompleted > 0 ? `${sessionsCompleted % 10}/10 sessions to next badge` : "Complete sessions to earn badges!"}</p>
+              <Label className="text-sm">Level Progress (Next Badge): {sessionsCompleted} sessions completed</Label>
+              <Progress value={sessionsCompleted > 0 ? (sessionsCompleted % 10) * 10 : 0} className="h-2 mt-1" />
+              <p className="text-xs text-muted-foreground mt-1">{sessionsCompleted > 0 && sessionsCompleted % 10 !== 0 ? `${10 - (sessionsCompleted % 10)} sessions to next badge` : "Complete sessions to earn badges!"}</p>
             </div>
             <div className="space-y-1">
               <Label className="text-sm">Badges Earned:</Label>
@@ -302,13 +392,32 @@ export function ProfileClient() {
                   {badges.map(badge => <Badge key={badge} variant="outline">{badge}</Badge>)}
                 </div>
               ) : (
-                <p className="text-xs text-muted-foreground">No badges earned yet.</p>
+                <p className="text-xs text-muted-foreground">No badges earned yet. Complete sessions!</p>
               )}
             </div>
-            <Separator />
-             <div>
-                <h4 className="text-sm font-medium mb-2 flex items-center gap-2"><ListChecks className="h-4 w-4 text-muted-foreground"/>Transaction History</h4>
-                <p className="text-xs text-muted-foreground text-center py-2">Transaction history coming soon.</p>
+            <Separator className="my-4" />
+            <div>
+              <h4 className="text-sm font-medium mb-2 flex items-center gap-2"><ListChecks className="h-4 w-4 text-muted-foreground"/>Transaction History</h4>
+              {transactionHistory.length > 1 ? ( // Check if more than just starting balance
+                <ScrollArea className="h-[150px] w-full rounded-md border p-2 bg-muted/30">
+                  <div className="space-y-3">
+                    {transactionHistory.filter(tx => tx.description !== "Starting Balance" || transactionHistory.length === 1).map((tx) => (
+                      <div key={tx.id} className="flex justify-between items-start p-2 rounded-md hover:bg-muted/50 text-sm gap-2">
+                        <div className="flex-grow">
+                          <p className="font-medium leading-tight">{tx.description}</p>
+                          <p className="text-xs text-muted-foreground">{format(tx.date, "MMM d, yyyy 'at' h:mm a")}</p>
+                        </div>
+                        <div className={`flex items-center font-semibold whitespace-nowrap ${tx.type === 'credit' ? 'text-green-600' : 'text-red-600'}`}>
+                          {tx.type === 'credit' ? <TrendingUp className="mr-1 h-4 w-4 flex-shrink-0" /> : <TrendingDown className="mr-1 h-4 w-4 flex-shrink-0" />}
+                          {tx.type === 'credit' ? '+' : ''}{tx.amount}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center py-4">No transactions yet. Complete sessions to earn coins!</p>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -414,7 +523,44 @@ export function ProfileClient() {
             </div>
           </CardContent>
         </Card>
+
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Award className="text-primary" /> My Skill Assessments
+            </CardTitle>
+            <CardDescription>Summary of your assessed skill levels.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {assessedSkills.length > 0 ? (
+              <ul className="space-y-3">
+                {assessedSkills.map((assessment) => (
+                  <li key={assessment.id} className="p-3 border rounded-md bg-muted/50 hover:bg-muted/75">
+                    <div className="flex justify-between items-center">
+                      <h4 className="font-semibold text-base">{assessment.skillName}</h4>
+                      <Badge variant={
+                        assessment.level === "Advanced" ? "default" :
+                        assessment.level === "Intermediate" ? "secondary" :
+                        "outline"
+                      } className="capitalize">{assessment.level}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Assessed on: {format(assessment.date, "MMM d, yyyy")}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                You haven&apos;t completed any skill assessments yet. Visit a skill page to get started!
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
       </div>
     </div>
   );
 }
+
+    
