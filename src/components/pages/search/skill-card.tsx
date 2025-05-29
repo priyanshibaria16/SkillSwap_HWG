@@ -1,3 +1,4 @@
+
 import Image from "next/image";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,8 @@ interface SkillCardProps {
 }
 
 export function SkillCard({ id, name, tutor, rating, price, image, category, dataAiHint }: SkillCardProps) {
+  const chatHref = `/chat/skillinquiry_${id}?skillName=${encodeURIComponent(name)}&partnerName=${encodeURIComponent(tutor)}`;
+
   return (
     <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col h-full">
       <CardHeader className="p-0">
@@ -43,11 +46,13 @@ export function SkillCard({ id, name, tutor, rating, price, image, category, dat
       </CardContent>
       <CardFooter className="p-4 border-t">
         <div className="flex w-full gap-2">
-          <Button variant="outline" size="sm" className="flex-1">
-            <MessageSquare className="mr-2 h-4 w-4" /> Barter/Chat
+          <Button variant="outline" size="sm" className="flex-1" asChild>
+            <Link href={chatHref}>
+              <MessageSquare className="mr-2 h-4 w-4" /> Chat with Tutor
+            </Link>
           </Button>
           <Button size="sm" asChild className="flex-1">
-            <Link href={`/skill/${id}`}>
+            <Link href={`/skill/${id}`}> {/* Ensure this links to /skill/[id] */}
               View Details <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>

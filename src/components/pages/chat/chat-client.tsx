@@ -2,13 +2,13 @@
 "use client";
 
 import { useState, useEffect, useRef, type FormEvent } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Send, ArrowLeft } from "lucide-react";
+import { Send, ArrowLeft, MessageCircle, Info } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/shared/page-header";
 
@@ -23,31 +23,46 @@ interface Message {
 
 export function ChatClient({ barterRequestId }: { barterRequestId: string }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
-  const [partnerName, setPartnerName] = useState("Partner");
-  const [skillOffered, setSkillOffered] = useState("");
-  const [skillRequested, setSkillRequested] = useState("");
-  
+  const [pageTitle, setPageTitle] = useState("Chat");
+  const [pageDescription, setPageDescription] = useState("Loading chat details...");
+  const [partnerDisplayName, setPartnerDisplayName] = useState("Partner");
+
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
 
-  useEffect(() => {
-    setPartnerName(searchParams.get("partnerName") || "Partner");
-    setSkillOffered(searchParams.get("skillOffered") || "a skill");
-    setSkillRequested(searchParams.get("skillRequested") || "another skill");
-  }, [searchParams]);
+  const isSkillInquiry = barterRequestId && barterRequestId.startsWith("skillinquiry_");
 
   useEffect(() => {
-    // Mock initial messages or fetch them
-    setMessages([
-      { id: "1", sender: "Partner", text: `Hey! Interested in your offer: ${decodeURIComponent(searchParams.get("skillOffered") || "")} for my ${decodeURIComponent(searchParams.get("skillRequested") || "")}.`, timestamp: new Date(Date.now() - 1000 * 60 * 5), avatar: "https://placehold.co/40x40.png", fallback:"P" },
-      { id: "2", sender: "Self", text: "Hi there! Yes, I'm definitely interested in discussing this further.", timestamp: new Date(Date.now() - 1000 * 60 * 3), avatar: "https://placehold.co/40x40.png", fallback:"S" },
-    ]);
-  }, [searchParams]);
+    let initialMessages: Message[] = [];
+    const currentPartnerName = searchParams.get("partnerName") || "Partner";
+    setPartnerDisplayName(currentPartnerName);
+
+    if (isSkillInquiry) {
+      const skillNameParam = searchParams.get("skillName") || "a skill";
+      setPageTitle(`Chat with ${currentPartnerName}`);
+      setPageDescription(`Regarding skill: ${decodeURIComponent(skillNameParam)} (Inquiry ID: ${barterRequestId})`);
+      initialMessages = [
+        { id: "1", sender: "Partner", text: `Hi! Thanks for your interest in ${decodeURIComponent(skillNameParam)}. How can I help you?`, timestamp: new Date(Date.now() - 1000 * 60 * 2), avatar: "https://placehold.co/40x40.png", fallback: currentPartnerName.charAt(0) || "P" },
+        { id: "2", sender: "Self", text: "Hello! I was looking at your skill and had a few questions.", timestamp: new Date(Date.now() - 1000 * 60 * 1), avatar: "https://placehold.co/40x40.png", fallback:"S" },
+      ];
+    } else {
+      // Existing barter request logic
+      const skillOfferedParam = searchParams.get("skillOffered") || "a skill";
+      const skillRequestedParam = searchParams.get("skillRequested") || "another skill";
+      setPageTitle(`Chat with ${currentPartnerName}`);
+      setPageDescription(`Regarding your barter: ${decodeURIComponent(skillOfferedParam)} for ${decodeURIComponent(skillRequestedParam)}. Barter ID: ${barterRequestId}`);
+      initialMessages = [
+        { id: "1", sender: "Partner", text: `Hey! Interested in your offer: ${decodeURIComponent(skillOfferedParam)} for my ${decodeURIComponent(skillRequestedParam)}.`, timestamp: new Date(Date.now() - 1000 * 60 * 5), avatar: "https://placehold.co/40x40.png", fallback: currentPartnerName.charAt(0) || "P" },
+        { id: "2", sender: "Self", text: "Hi there! Yes, I'm definitely interested in discussing this further.", timestamp: new Date(Date.now() - 1000 * 60 * 3), avatar: "https://placehold.co/40x40.png", fallback:"S" },
+      ];
+    }
+    setMessages(initialMessages);
+  }, [searchParams, barterRequestId, isSkillInquiry]);
 
   useEffect(() => {
-    // Scroll to bottom when messages change
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTo({ top: scrollAreaRef.current.scrollHeight, behavior: 'smooth' });
     }
@@ -61,21 +76,23 @@ export function ChatClient({ barterRequestId }: { barterRequestId: string }) {
       sender: "Self",
       text: newMessage,
       timestamp: new Date(),
-      avatar: "https://placehold.co/40x40.png", // Replace with actual current user avatar
-      fallback: "S" // Replace with actual current user fallback
+      avatar: "https://placehold.co/40x40.png", 
+      fallback: "S" 
     };
     setMessages((prevMessages) => [...prevMessages, msg]);
     setNewMessage("");
   };
 
+  const backLink = isSkillInquiry ? "/search" : "/bookings";
+
   return (
     <div className="flex flex-col h-[calc(100vh-var(--header-height,100px)-2rem)] max-w-3xl mx-auto">
       <PageHeader
-        title={`Chat with ${partnerName}`}
-        description={`Regarding your barter: ${skillOffered} for ${skillRequested}. Barter ID: ${barterRequestId}`}
+        title={pageTitle}
+        description={<span className="flex items-center gap-1"><Info className="h-4 w-4 text-muted-foreground"/> {pageDescription}</span>}
         actions={
-          <Button variant="outline" asChild>
-            <Link href="/bookings"><ArrowLeft className="mr-2 h-4 w-4" /> Back to Bookings</Link>
+          <Button variant="outline" onClick={() => router.push(backLink)}>
+            <ArrowLeft className="mr-2 h-4 w-4" /> Back to {isSkillInquiry ? "Search" : "Bookings"}
           </Button>
         }
       />
@@ -92,8 +109,8 @@ export function ChatClient({ barterRequestId }: { barterRequestId: string }) {
               >
                 {msg.sender === "Partner" && (
                   <Avatar className="h-8 w-8">
-                    <AvatarImage src={msg.avatar} alt={partnerName} data-ai-hint="person avatar" />
-                    <AvatarFallback>{msg.fallback || partnerName.charAt(0)}</AvatarFallback>
+                    <AvatarImage src={msg.avatar} alt={partnerDisplayName} data-ai-hint="person avatar" />
+                    <AvatarFallback>{msg.fallback || partnerDisplayName.charAt(0)}</AvatarFallback>
                   </Avatar>
                 )}
                 <div
@@ -137,5 +154,3 @@ export function ChatClient({ barterRequestId }: { barterRequestId: string }) {
     </div>
   );
 }
-
-    
