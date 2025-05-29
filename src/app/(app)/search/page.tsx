@@ -1,6 +1,7 @@
+
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, useEffect } from "react";
 import { PageHeader } from "@/components/shared/page-header";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,21 +19,72 @@ const allSkillsData = [
   { id: "6", name: "Gourmet Baking Masterclass", tutor: "Fiona Gallagher", rating: 4.9, price: "Barter", image: "https://img.freepik.com/premium-photo/concept-sweet-food-tasty-chocolate-pancakes_185193-96540.jpg?uid=R140942659&ga=GA1.1.585428745.1748396871&semt=ais_hybrid&w=740", category: "Crafts", dataAiHint: "baking cake" },
 ];
 
+
 export default function SearchPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [displayedSkills, setDisplayedSkills] = useState(allSkillsData);
 
-  // TODO: Add state and handlers for filters (category, price, location, language)
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedPriceRange, setSelectedPriceRange] = useState<string>("all");
+  // Placeholder states for other filters, can be activated later
+  const [selectedLocation, setSelectedLocation] = useState<string>("all");
+  const [selectedLanguage, setSelectedLanguage] = useState<string>("all");
 
-  const handleSearch = (event?: FormEvent<HTMLFormElement>) => {
-    if (event) event.preventDefault();
-    const lowercasedQuery = searchQuery.toLowerCase();
-    const filtered = allSkillsData.filter(skill => 
-      skill.name.toLowerCase().includes(lowercasedQuery) ||
-      skill.tutor.toLowerCase().includes(lowercasedQuery) ||
-      skill.category.toLowerCase().includes(lowercasedQuery)
-    );
+  const parsePrice = (priceStr: string): number | 'Barter' => {
+    if (priceStr.toLowerCase() === "barter") {
+      return "Barter";
+    }
+    const match = priceStr.match(/₹(\d+)/);
+    return match ? parseInt(match[1], 10) : NaN;
+  };
+
+  useEffect(() => {
+    let filtered = allSkillsData;
+
+    // Filter by search query
+    if (searchQuery) {
+      const lowercasedQuery = searchQuery.toLowerCase();
+      filtered = filtered.filter(skill =>
+        skill.name.toLowerCase().includes(lowercasedQuery) ||
+        skill.tutor.toLowerCase().includes(lowercasedQuery) ||
+        skill.category.toLowerCase().includes(lowercasedQuery)
+      );
+    }
+
+    // Filter by category
+    if (selectedCategory && selectedCategory !== "all") {
+      filtered = filtered.filter(skill => skill.category === selectedCategory);
+    }
+
+    // Filter by price range
+    if (selectedPriceRange && selectedPriceRange !== "all") {
+      if (selectedPriceRange === "barter") {
+        filtered = filtered.filter(skill => skill.price.toLowerCase() === "barter");
+      } else {
+        const [minStr, maxStr] = selectedPriceRange.split('-');
+        const minPrice = parseInt(minStr, 10);
+        const maxPrice = parseInt(maxStr, 10);
+        
+        filtered = filtered.filter(skill => {
+          const priceValue = parsePrice(skill.price);
+          if (typeof priceValue === 'number') {
+            return priceValue >= minPrice && priceValue <= maxPrice;
+          }
+          return false; // Exclude "Barter" items if a numeric range is selected
+        });
+      }
+    }
+    
+    // TODO: Implement location and language filters when data supports it
+
     setDisplayedSkills(filtered);
+  }, [searchQuery, selectedCategory, selectedPriceRange, selectedLocation, selectedLanguage]);
+
+  const handleSearchFormSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    // The useEffect already handles filtering when searchQuery changes,
+    // so this form submission can be simplified or just ensure searchQuery state is up-to-date.
+    // For direct button click effect, you could re-trigger the logic, but useEffect covers it.
   };
 
   return (
@@ -42,7 +94,7 @@ export default function SearchPage() {
         description="Explore a wide variety of skills and connect with talented tutors."
       />
       <div className="mb-6 p-4 border rounded-lg bg-card shadow">
-        <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-4 items-center">
+        <form onSubmit={handleSearchFormSubmit} className="flex flex-col md:flex-row gap-4 items-center">
           <div className="relative flex-grow w-full md:w-auto">
             <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
@@ -51,6 +103,7 @@ export default function SearchPage() {
               className="w-full pl-10 pr-4 py-2 h-11 text-base"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Search skills"
             />
           </div>
           <Button type="submit" size="lg" className="w-full md:w-auto h-11">
@@ -58,44 +111,49 @@ export default function SearchPage() {
           </Button>
         </form>
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          <Select>
-            <SelectTrigger className="h-10">
-              <SelectValue placeholder="Category" />
+          <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+            <SelectTrigger className="h-10" aria-label="Filter by category">
+              <SelectValue placeholder="Category (All)" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="crafts">Crafts</SelectItem>
-              <SelectItem value="language">Language</SelectItem>
-              <SelectItem value="tech">Tech</SelectItem>
-              <SelectItem value="wellness">Wellness</SelectItem>
-              <SelectItem value="music">Music</SelectItem>
+              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="Crafts">Crafts</SelectItem>
+              <SelectItem value="Language">Language</SelectItem>
+              <SelectItem value="Tech">Tech</SelectItem>
+              <SelectItem value="Wellness">Wellness</SelectItem>
+              <SelectItem value="Music">Music</SelectItem>
             </SelectContent>
           </Select>
-          <Select>
-            <SelectTrigger className="h-10">
-              <SelectValue placeholder="Price Range" />
+          <Select value={selectedPriceRange} onValueChange={setSelectedPriceRange}>
+            <SelectTrigger className="h-10" aria-label="Filter by price range">
+              <SelectValue placeholder="Price Range (All)" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">All Prices</SelectItem>
               <SelectItem value="barter">Barter</SelectItem>
               <SelectItem value="50-100">₹50-₹100</SelectItem>
               <SelectItem value="100-150">₹100-₹150</SelectItem>
               <SelectItem value="150-200">₹150-₹200</SelectItem>
+               <SelectItem value="201-9999">₹200+</SelectItem> {/* Example for above 200 */}
             </SelectContent>
           </Select>
-          <Select>
-            <SelectTrigger className="h-10">
-              <SelectValue placeholder="Location" />
+          <Select value={selectedLocation} onValueChange={setSelectedLocation} disabled>
+            <SelectTrigger className="h-10" aria-label="Filter by location (disabled)">
+              <SelectValue placeholder="Location (All)" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">All Locations</SelectItem>
               <SelectItem value="online">Online</SelectItem>
               <SelectItem value="mumbai">Mumbai</SelectItem>
               <SelectItem value="delhi">Delhi</SelectItem>
             </SelectContent>
           </Select>
-          <Select>
-            <SelectTrigger className="h-10">
-              <SelectValue placeholder="Language" />
+          <Select value={selectedLanguage} onValueChange={setSelectedLanguage} disabled>
+            <SelectTrigger className="h-10" aria-label="Filter by language (disabled)">
+              <SelectValue placeholder="Language (All)" />
             </SelectTrigger>
             <SelectContent>
+              <SelectItem value="all">All Languages</SelectItem>
               <SelectItem value="english">English</SelectItem>
               <SelectItem value="hindi">Hindi</SelectItem>
               <SelectItem value="gujarati">Gujarati</SelectItem>
@@ -103,8 +161,8 @@ export default function SearchPage() {
           </Select>
         </div>
          <div className="mt-4 flex justify-end">
-            <Button variant="outline">
-                <ListFilter className="mr-2 h-4 w-4" /> Advanced Filters
+            <Button variant="outline" disabled>
+                <ListFilter className="mr-2 h-4 w-4" /> Advanced Filters (Not Implemented)
             </Button>
         </div>
       </div>
@@ -115,7 +173,7 @@ export default function SearchPage() {
         ))}
       </div>
       {displayedSkills.length === 0 && (
-        <div className="text-center py-10 col-span-full"> {/* Added col-span-full here */}
+        <div className="text-center py-10 col-span-full">
             <SearchIcon className="mx-auto h-12 w-12 text-muted-foreground" />
             <h3 className="mt-2 text-sm font-medium text-foreground">No skills found</h3>
             <p className="mt-1 text-sm text-muted-foreground">Try adjusting your search or filters.</p>

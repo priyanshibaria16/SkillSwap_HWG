@@ -94,8 +94,6 @@ export function ProfileClient() {
         setDisplayName(user.displayName || "");
         setImagePreview(user.photoURL);
         
-        // Initialize profile data - in a real app, fetch this from Firestore
-        // For now, using defaults if not already set by some other means (e.g. local state persistence if added)
         setBio(prev => prev || defaultBio);
         setSkills(prev => prev || defaultSkills);
         setExperience(prev => prev || defaultExperience);
@@ -107,7 +105,7 @@ export function ProfileClient() {
         setBadges([]); 
         setTransactionHistory([
           {
-            id: new Date().toISOString() + Math.random().toString(36).substring(2, 7) + 'start', // unique id
+            id: new Date().toISOString() + Math.random().toString(36).substring(2, 7) + 'start', 
             description: "Starting Balance",
             amount: 0, 
             date: new Date(),
@@ -122,7 +120,6 @@ export function ProfileClient() {
 
       } else {
         setCurrentUser(null);
-        // Reset all states if user logs out
         setDisplayName("");
         setBio(defaultBio);
         setSkills(defaultSkills);
@@ -134,7 +131,7 @@ export function ProfileClient() {
         setTutorRating(0.0);
         setBadges([]);
         setTransactionHistory([]);
-        setAssessedSkills([ // Reset placeholder assessed skills too
+        setAssessedSkills([ 
             { id: 'assess1', skillName: 'Advanced Pottery', level: 'Intermediate', date: new Date(Date.now() - 86400000 * 2) },
             { id: 'assess2', skillName: 'Conversational Spanish', level: 'Beginner', date: new Date(Date.now() - 86400000 * 5) },
         ]);
@@ -142,7 +139,6 @@ export function ProfileClient() {
       setIsLoading(false);
     });
     return () => unsubscribe();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); 
 
   useEffect(() => {
@@ -154,7 +150,7 @@ export function ProfileClient() {
     } else if (nameForFallback.length > 1) {
       fallback += (nameForFallback.charAt(1) || "").toUpperCase();
     } else {
-      fallback += (nameForFallback.charAt(0) || "K").toUpperCase(); // Ensure two chars if possible
+      fallback += (nameForFallback.charAt(0) || "K").toUpperCase(); 
     }
     setAvatarFallback(fallback);
   }, [currentUser, displayName]);
@@ -178,12 +174,10 @@ export function ProfileClient() {
     } else { 
       if (currentUser) {
         setDisplayName(currentUser.displayName || "");
-        // Fetch current bio, skills, exp from state if they were potentially edited before but not saved
-        // For now, we just set them from defaults or existing state if they were already there.
-        setBio(prev => prev || defaultBio);
-        setSkills(prev => prev || defaultSkills);
-        setExperience(prev => prev || defaultExperience);
-        setImagePreview(currentUser.photoURL || null); 
+        setBio(bio || defaultBio); // Keep current edited bio or default
+        setSkills(skills || defaultSkills); // Keep current edited skills or default
+        setExperience(experience || defaultExperience); // Keep current edited experience or default
+        setImagePreview(currentUser.photoURL || imagePreview); // Keep current preview or Firebase one
         setSelectedFile(null); 
       }
       setIsEditing(true);
@@ -216,23 +210,14 @@ export function ProfileClient() {
       }
     }
     
-    // In a real app, you'd upload selectedFile to Firebase Storage here
-    // and then update currentUser.photoURL with the new image URL.
     if (selectedFile) {
-        messages.push("Profile picture selected (actual upload not implemented in this step).");
+        messages.push("Profile picture selected (upload not implemented).");
     }
     
-    // Simulate saving other fields (bio, skills, experience) locally for now
-    // In a real app, you'd save these to Firestore.
-    if (bio !== (currentUser.providerData[0]?.email || defaultBio)) { // A bit of a stand-in comparison
-        messages.push("Bio updated (locally).");
-    }
-    if (skills !== defaultSkills) { 
-        messages.push("Skills updated (locally).");
-    }
-    if (experience !== defaultExperience) { 
-        messages.push("Experience updated (locally).");
-    }
+    // Other fields like bio, skills, experience, and ratings are updated in local state
+    // Their persistence would require Firestore integration.
+    messages.push("Other profile details updated (locally).");
+
 
     if (messages.length > 0) {
       toast({ title: "Profile Updated", description: messages.join(" ") });
@@ -278,6 +263,16 @@ export function ProfileClient() {
       }
     }
   };
+  
+  const handleRatingChange = (setter: React.Dispatch<React.SetStateAction<number>>, value: string) => {
+    const newRating = parseFloat(value);
+    if (!isNaN(newRating) && newRating >= 0 && newRating <= 5) {
+      setter(newRating);
+    } else if (value === "") {
+      setter(0); // Or some other default if empty
+    }
+  };
+
 
   if (isLoading) {
     return (
@@ -398,7 +393,7 @@ export function ProfileClient() {
             <Separator className="my-4" />
             <div>
               <h4 className="text-sm font-medium mb-2 flex items-center gap-2"><ListChecks className="h-4 w-4 text-muted-foreground"/>Transaction History</h4>
-              {transactionHistory.length > 1 ? ( // Check if more than just starting balance
+              {transactionHistory.length > 1 ? ( 
                 <ScrollArea className="h-[150px] w-full rounded-md border p-2 bg-muted/30">
                   <div className="space-y-3">
                     {transactionHistory.filter(tx => tx.description !== "Starting Balance" || transactionHistory.length === 1).map((tx) => (
@@ -494,10 +489,25 @@ export function ProfileClient() {
                 <Star className="text-yellow-400" /> Ratings
             </CardTitle>
           </CardHeader>
-          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-6">
             <div>
-                <h4 className="font-semibold flex items-center gap-1"><BookUser className="h-5 w-5" /> As Learner:</h4>
-                {learnerRating > 0 ? (
+                <h4 className="font-semibold flex items-center gap-1 mb-2"><BookUser className="h-5 w-5" /> As Learner:</h4>
+                {isEditing ? (
+                  <div className="space-y-1">
+                    <Label htmlFor="learner-rating-input" className="text-xs">Edit Rating (0-5)</Label>
+                    <Input
+                      id="learner-rating-input"
+                      type="number"
+                      value={learnerRating.toString()} // Keep as string for controlled input if needed, or bind directly
+                      onChange={(e) => handleRatingChange(setLearnerRating, e.target.value)}
+                      min="0"
+                      max="5"
+                      step="0.1"
+                      className="h-9"
+                      disabled={isSaving}
+                    />
+                  </div>
+                ) : learnerRating > 0 ? (
                     <div className="flex items-center mt-1">
                         {[...Array(5)].map((_, i) => (
                             <Star key={i} className={`h-5 w-5 ${i < Math.round(learnerRating) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
@@ -509,8 +519,23 @@ export function ProfileClient() {
                 )}
             </div>
             <div>
-                <h4 className="font-semibold flex items-center gap-1"><Briefcase className="h-5 w-5" /> As Tutor:</h4>
-                 {tutorRating > 0 ? (
+                <h4 className="font-semibold flex items-center gap-1 mb-2"><Briefcase className="h-5 w-5" /> As Tutor:</h4>
+                {isEditing ? (
+                  <div className="space-y-1">
+                     <Label htmlFor="tutor-rating-input" className="text-xs">Edit Rating (0-5)</Label>
+                    <Input
+                      id="tutor-rating-input"
+                      type="number"
+                      value={tutorRating.toString()}
+                      onChange={(e) => handleRatingChange(setTutorRating, e.target.value)}
+                      min="0"
+                      max="5"
+                      step="0.1"
+                      className="h-9"
+                      disabled={isSaving}
+                    />
+                  </div>
+                ) : tutorRating > 0 ? (
                     <div className="flex items-center mt-1">
                         {[...Array(5)].map((_, i) => (
                             <Star key={i} className={`h-5 w-5 ${i < Math.round(tutorRating) ? 'text-yellow-400 fill-yellow-400' : 'text-gray-300'}`} />
@@ -562,5 +587,3 @@ export function ProfileClient() {
     </div>
   );
 }
-
-    
