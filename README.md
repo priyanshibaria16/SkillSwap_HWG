@@ -1,4 +1,4 @@
-App Link: skillswap-gamma.vercel.app
+App Link: https://skillswap-gamma.vercel.app/
 
 
 
